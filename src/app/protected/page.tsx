@@ -28,6 +28,10 @@ export default function ProtectedPage() {
        // Stay on page to show error, or redirect:
        // router.push('/');
     }
+    // If user is logged in, redirect to the dashboard instead
+    if (!loading && !error && user) {
+        router.replace('/dashboard');
+    }
   }, [user, loading, error, router]);
 
   const handleLogout = async () => {
@@ -60,8 +64,7 @@ export default function ProtectedPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        {/* Optional: Add a more prominent loading indicator here */}
-         <p>Loading user data...</p>
+         <p>Loading...</p>
       </div>
     );
   }
@@ -82,37 +85,21 @@ export default function ProtectedPage() {
      );
    }
 
-  // Display protected content if user is authenticated
-  if (user) {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center bg-secondary p-4 fade-in">
-        <Card className="w-full max-w-md shadow-lg text-center">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold">Welcome!</CardTitle>
-            <CardDescription>You have successfully logged in.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center gap-4">
-            <Avatar className="h-20 w-20">
-              <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName ?? "User"} />
-              <AvatarFallback>
-                {user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email?.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <p className="text-lg font-medium">{user.displayName ?? 'User'}</p>
-            <p className="text-muted-foreground">{user.email}</p>
-            <Button onClick={handleLogout} variant="destructive" className="mt-4 bg-accent hover:bg-accent/90 text-accent-foreground">
-              <LogOut className="mr-2 h-4 w-4" /> Logout
-            </Button>
-          </CardContent>
-        </Card>
-      </main>
-    );
-  }
+   // This content might briefly show before redirecting to /dashboard
+   // Or show if redirect fails for some reason
+   if (user) {
+     return (
+       <div className="flex min-h-screen items-center justify-center">
+           <p>Redirecting to dashboard...</p>
+       </div>
+     );
+   }
 
-  // Fallback if not loading, no error, but no user (should be redirected, but as a safeguard)
+
+  // Fallback if not loading, no error, but no user (should be redirected by effect, but as a safeguard)
   return (
       <div className="flex min-h-screen items-center justify-center">
-          <p>Redirecting...</p>
+          <p>Redirecting to login...</p>
       </div>
   );
 }

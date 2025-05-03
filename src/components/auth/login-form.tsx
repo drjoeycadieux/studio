@@ -9,6 +9,7 @@ import {
   signInWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithPopup,
+  type FirebaseError, // Import FirebaseError type
 } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
@@ -72,13 +73,36 @@ export function LoginForm() {
         title: "Login Successful",
         description: "Welcome back!",
       });
-      router.push("/protected"); // Redirect to protected page
-    } catch (error: any) {
+      router.push("/dashboard"); // Redirect to dashboard page
+    } catch (error: unknown) { // Use unknown type for error
       console.error("Login error:", error);
+      let errorMessage = "An unknown error occurred. Please try again.";
+      if (error instanceof Error && 'code' in error) {
+          const firebaseError = error as FirebaseError; // Type assertion
+          switch (firebaseError.code) {
+              case 'auth/user-not-found':
+              case 'auth/wrong-password':
+              case 'auth/invalid-credential':
+                errorMessage = "Invalid email or password. Please check your credentials.";
+                break;
+              case 'auth/invalid-email':
+                errorMessage = "Invalid email format.";
+                break;
+              case 'auth/too-many-requests':
+                errorMessage = "Access temporarily disabled due to too many failed login attempts. Please try again later.";
+                 break;
+              default:
+                // Use the original message for other Firebase errors
+                errorMessage = firebaseError.message || errorMessage;
+          }
+      } else if (error instanceof Error) {
+          errorMessage = error.message; // Use message from standard Error
+      }
+
       toast({
         variant: "destructive",
         title: "Login Failed",
-        description: error.message || "An unknown error occurred.",
+        description: errorMessage,
       });
     } finally {
       setIsLoading(false);
@@ -98,7 +122,7 @@ export function LoginForm() {
         title: "Google Sign-In Successful",
         description: "Welcome!",
       });
-      router.push("/protected");
+      router.push("/dashboard"); // Redirect to dashboard page
     } catch (error: any) {
       console.error("Google Sign-in error:", error);
       toast({
