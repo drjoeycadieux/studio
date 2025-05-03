@@ -11,33 +11,39 @@ const firebaseConfig = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID, // Optional
+  // measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID, // Optional
 };
 
-let app: FirebaseApp;
-let auth: Auth;
+let app: FirebaseApp | null = null;
+let auth: Auth | null = null;
+let firebaseInitializationError: string | null = null;
 
 // Check if Firebase API Key is provided
-if (!firebaseConfig.apiKey) {
-  console.error("Firebase initialization error: Missing Firebase API Key. Make sure NEXT_PUBLIC_FIREBASE_API_KEY environment variable is set.");
-  // Throw an error or handle the missing key scenario appropriately.
-  // For this app, auth is critical, so we throw.
-  throw new Error("Missing Firebase API Key environment variable.");
+if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "YOUR_API_KEY") {
+  const errorMessage = "Firebase initialization error: Missing or placeholder Firebase API Key. Make sure NEXT_PUBLIC_FIREBASE_API_KEY environment variable is set correctly in your .env.local file.";
+  console.error(errorMessage);
+  firebaseInitializationError = errorMessage;
+  // Throw error only during build/server-side execution, not on client
+  if (typeof window === 'undefined') {
+    throw new Error(errorMessage);
+  }
+} else {
+  try {
+    // Initialize Firebase only if the config seems valid
+    app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    auth = getAuth(app);
+    // const db = getFirestore(app); // Uncomment if using Firestore
+    // const storage = getStorage(app); // Uncomment if using Storage
+  } catch (error: any) {
+    // Catch potential errors during initialization (e.g., invalid config values)
+    firebaseInitializationError = `Firebase initialization failed: ${error.message}`;
+    console.error(firebaseInitializationError, error);
+     // Throw error only during build/server-side execution
+    if (typeof window === 'undefined') {
+        throw new Error(firebaseInitializationError);
+    }
+  }
 }
 
-try {
-  // Initialize Firebase
-  app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-  auth = getAuth(app);
-  // const db = getFirestore(app); // Uncomment if using Firestore
-  // const storage = getStorage(app); // Uncomment if using Storage
-} catch (error: any) {
-  // Catch potential errors during initialization (e.g., invalid config values)
-  console.error("Firebase initialization error:", error.message);
-  // Re-throw the error to halt execution if Firebase is critical
-  throw new Error(`Firebase initialization failed: ${error.message}`);
-}
-
-
-export { app, auth }; // Add db, storage to export if used
+export { app, auth, firebaseInitializationError }; // Add db, storage to export if used
 

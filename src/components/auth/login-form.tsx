@@ -23,19 +23,22 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { auth } from "@/lib/firebase/config";
+import { auth, firebaseInitializationError } from "@/lib/firebase/config"; // Import auth and error status
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
 
-// Google icon SVG
+// Google icon SVG (remains unchanged)
 const GoogleIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24">
-    <path fill="#4285F4" d="M21.35 11.1h-9.18v2.73h5.21c-.23 1.43-1.2 2.73-2.83 3.64v2.36h3.04c1.79-1.64 2.83-4.1 2.83-6.99 0-.73-.07-1.43-.23-2.13z"/>
-    <path fill="#34A853" d="M12.17 22c2.43 0 4.47-.8 5.96-2.18l-3.04-2.36c-.8.54-1.83.87-2.92.87-2.26 0-4.18-1.53-4.87-3.57H4.18v2.44C5.7 20.3 8.68 22 12.17 22z"/>
-    <path fill="#FBBC05" d="M7.3 14.73c-.18-.54-.28-1.12-.28-1.73s.1-1.19.28-1.73V8.83H4.18C3.83 9.88 3.64 11 3.64 12.23c0 1.23.19 2.35.54 3.4l3.12-2.46z"/>
-    <path fill="#EA4335" d="M12.17 6.55c1.31 0 2.5.45 3.44 1.38l2.6-2.6C16.64 3.7 14.59 2.8 12.17 2.8 8.68 2.8 5.7 4.7 4.18 7.39l3.12 2.44c.69-2.04 2.61-3.58 4.87-3.58z"/>
-  </svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24">
+        <path fill="#4285F4" d="M21.35 11.1h-9.18v2.73h5.21c-.23 1.43-1.2 2.73-2.83 3.64v2.36h3.04c1.79-1.64 2.83-4.1 2.83-6.99 0-.73-.07-1.43-.23-2.13z"/>
+        <path fill="#34A853" d="M12.17 22c2.43 0 4.47-.8 5.96-2.18l-3.04-2.36c-.8.54-1.83.87-2.92.87-2.26 0-4.18-1.53-4.87-3.57H4.18v2.44C5.7 20.3 8.68 22 12.17 22z"/>
+        <path fill="#FBBC05" d="M7.3 14.73c-.18-.54-.28-1.12-.28-1.73s.1-1.19.28-1.73V8.83H4.18C3.83 9.88 3.64 11 3.64 12.23c0 1.23.19 2.35.54 3.4l3.12-2.46z"/>
+        <path fill="#EA4335" d="M12.17 6.55c1.31 0 2.5.45 3.44 1.38l2.6-2.6C16.64 3.7 14.59 2.8 12.17 2.8 8.68 2.8 5.7 4.7 4.18 7.39l3.12 2.44c.69-2.04 2.61-3.58 4.87-3.58z"/>
+    </svg>
 );
+
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -47,6 +50,7 @@ export function LoginForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = React.useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
+  const isAuthDisabled = !!firebaseInitializationError || (!auth); // Check if auth is disabled
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -57,6 +61,10 @@ export function LoginForm() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (isAuthDisabled || !auth) {
+      toast({ variant: "destructive", title: "Login Error", description: "Authentication is not available." });
+      return;
+    }
     setIsLoading(true);
     try {
       await signInWithEmailAndPassword(auth, values.email, values.password);
@@ -78,6 +86,10 @@ export function LoginForm() {
   }
 
   async function handleGoogleSignIn() {
+     if (isAuthDisabled || !auth) {
+        toast({ variant: "destructive", title: "Login Error", description: "Authentication is not available." });
+        return;
+     }
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
@@ -105,6 +117,15 @@ export function LoginForm() {
         <CardTitle className="text-2xl font-bold text-center">Login to AuthNest</CardTitle>
       </CardHeader>
       <CardContent>
+         {firebaseInitializationError && (
+            <Alert variant="destructive" className="mb-4">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Configuration Error</AlertTitle>
+                <AlertDescription>
+                    {firebaseInitializationError} Login is disabled.
+                </AlertDescription>
+            </Alert>
+         )}
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
@@ -114,7 +135,7 @@ export function LoginForm() {
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input placeholder="you@example.com" {...field} disabled={isLoading || isGoogleLoading} />
+                    <Input placeholder="you@example.com" {...field} disabled={isLoading || isGoogleLoading || isAuthDisabled} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -127,13 +148,13 @@ export function LoginForm() {
                 <FormItem>
                   <FormLabel>Password</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} disabled={isLoading || isGoogleLoading} />
+                    <Input type="password" placeholder="••••••••" {...field} disabled={isLoading || isGoogleLoading || isAuthDisabled} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading || isGoogleLoading}>
+            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading || isGoogleLoading || isAuthDisabled}>
               {isLoading ? "Logging in..." : "Login"}
             </Button>
           </form>
@@ -143,7 +164,7 @@ export function LoginForm() {
           variant="outline"
           className="w-full flex items-center justify-center gap-2"
           onClick={handleGoogleSignIn}
-          disabled={isLoading || isGoogleLoading}
+          disabled={isLoading || isGoogleLoading || isAuthDisabled}
         >
           {isGoogleLoading ? (
             "Signing in..."
